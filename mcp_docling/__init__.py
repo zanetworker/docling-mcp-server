@@ -18,8 +18,8 @@ def main():
     # Log the timeout value
     logging.info(f"Starting MCP server with timeout: {args.timeout} seconds")
     
-    # Run the MCP server with the specified timeout
-    mcp.run(timeout=args.timeout)
+    # Run the MCP server (without the timeout parameter)
+    mcp.run()
 
 if __name__ == "__main__":
     main() 

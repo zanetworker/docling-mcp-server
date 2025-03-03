@@ -1,0 +1,14 @@
+{
+  "mcpServers": {
+    "docling": {
+      "command": "/Users/azaalouk/.pyenv/versions/docling-mcp-server/bin/python",
+      "args": [
+        "-m",
+        "mcp_docling"
+      ],
+      "env": {
+        "PYTHONPATH": "/Users/azaalouk/go/src/github.com/zanetworker/docling-mcp-server"
+      }
+    }
+  }
+}

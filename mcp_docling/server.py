@@ -34,9 +34,13 @@ logger = logging.getLogger(__name__)
 def configure_accelerator():
     """Configure the accelerator device for Docling."""
     try:
-        # Try to use MPS (Metal Performance Shaders) on macOS
-        settings.perf.accelerator_device = AcceleratorDevice.MPS
-        logger.info(f"Configured accelerator device: {settings.perf.accelerator_device}")
+        # Check if the accelerator_device attribute exists
+        if hasattr(settings.perf, 'accelerator_device'):
+            # Try to use MPS (Metal Performance Shaders) on macOS
+            settings.perf.accelerator_device = AcceleratorDevice.MPS
+            logger.info(f"Configured accelerator device: {settings.perf.accelerator_device}")
+        else:
+            logger.info("Accelerator device configuration not supported in this version of Docling")
         
         # Optimize batch processing
         settings.perf.doc_batch_size = 1  # Process one document at a time
@@ -256,7 +260,7 @@ def convert_document_with_images(
 @mcp.tool()
 def extract_tables(
     source: str
-) -> List[Dict[str, Any]]:
+) -> List[str]:
     """
     Extract tables from a document and return them as structured data.
     
@@ -264,44 +268,25 @@ def extract_tables(
         source: URL or local file path to the document
         
     Returns:
-        A list of tables with their content
+        A list of tables in markdown format
         
     Usage:
         extract_tables("https://arxiv.org/pdf/2408.09869")
     """
-    try:
-        # Create converter and convert document
-        converter = DocumentConverter()
-        result = converter.convert(source)
-        
-        if result.status.is_error:
-            error_msg = f"Conversion failed: {result.errors}"
-            raise McpError(ErrorData(INTERNAL_ERROR, error_msg))
-            
-        # Extract tables
-        tables = []
-        for item in result.document.items:
-            if hasattr(item, 'rows') and hasattr(item, 'cols'):
-                table_data = {
-                    "id": item.id,
-                    "caption": getattr(item, 'caption', ''),
-                    "rows": []
-                }
-                
-                # Extract table content
-                for row in range(item.rows):
-                    row_data = []
-                    for col in range(item.cols):
-                        cell_content = item.get_cell(row, col)
-                        row_data.append(cell_content if cell_content else "")
-                    table_data["rows"].append(row_data)
-                
-                tables.append(table_data)
-        
-        return tables
-        
-    except Exception as e:
-        raise McpError(ErrorData(INTERNAL_ERROR, f"Unexpected error: {str(e)}"))
+    source = source.strip('"\'')
+
+    # Create converter and convert document
+    converter = DocumentConverter()
+
+    # The issue might be in how the source is passed to convert
+    # Let's ensure it's passed as a keyword argument
+    conversion_result = converter.convert(source=source)
+    tables_results = []
+    for table in conversion_result.document.tables:
+        tables_results.append(table.export_to_markdown())
+
+    return tables_results
+
 
 @mcp.tool()
 def convert_batch(
@@ -385,12 +370,7 @@ def get_system_info() -> Dict[str, Any]:
         get_system_info()
     """
     try:
-        # Instead of using get_available_accelerator_devices(), just report the configured device
-        return {
-            "accelerator": {
-                "configured": str(settings.perf.accelerator_device),
-                "available": ["CPU", "MPS"]  # Hardcode the common options
-            },
+        system_info = {
             "batch_settings": {
                 "doc_batch_size": settings.perf.doc_batch_size,
                 "doc_batch_concurrency": settings.perf.doc_batch_concurrency
@@ -400,5 +380,19 @@ def get_system_info() -> Dict[str, Any]:
                 "location": str(CACHE_DIR)
             }
         }
+        
+        # Add accelerator info if available
+        if hasattr(settings.perf, 'accelerator_device'):
+            system_info["accelerator"] = {
+                "configured": str(settings.perf.accelerator_device),
+                "available": ["CPU", "MPS"]  # Hardcode the common options
+            }
+        else:
+            system_info["accelerator"] = {
+                "configured": "Not configured",
+                "available": ["CPU"]  # Default to CPU only
+            }
+            
+        return system_info
     except Exception as e:
         raise McpError(ErrorData(INTERNAL_ERROR, f"Error getting system info: {str(e)}")) 
