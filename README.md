@@ -123,7 +123,7 @@ Returns information about the system configuration and acceleration status.
 get_system_info()
 ```
 
-## Testing
+## Testing with Llama Stack [WIP]
 
 You can test the server using the provided test script:
 
